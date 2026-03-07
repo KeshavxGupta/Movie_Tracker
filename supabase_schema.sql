@@ -16,6 +16,7 @@ CREATE TABLE items (
   year TEXT,
   overview TEXT,
   added_at BIGINT NOT NULL,
+  notes TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
