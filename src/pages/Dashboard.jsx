@@ -49,8 +49,8 @@ function cn(...inputs) {
 
 // --- Configuration & Constants ---
 const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY;
-const IMG_PATH = "https://image.tmdb.org/t/p/w500";
-const BACKDROP_PATH = "https://image.tmdb.org/t/p/original";
+const IMG_PATH = "https://image.tmdb.org/t/p/w342";
+const BACKDROP_PATH = "https://image.tmdb.org/t/p/w1280";
 
 const GENRES = {
   28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy",
@@ -114,6 +114,36 @@ function Dashboard() {
         });
     }
   }, [isSearchOpen, trendingMedia.length, searchQuery]);
+
+  // Debounced Search Fetching
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setIsLoading(searchQuery === '' && isSearchOpen && trendingMedia.length === 0);
+      return;
+    }
+
+    setIsLoading(true);
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const query = encodeURIComponent(searchQuery.trim());
+        const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${TMDB_API_KEY}&query=${query}&include_adult=false`);
+        const data = await res.json();
+        if (data.results) {
+          setSearchResults(data.results.filter(r => r.media_type !== 'person').slice(0, 10));
+        }
+      } catch (err) {
+        console.error("Search fetch error:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(searchTimeoutRef.current);
+  }, [searchQuery]);
 
   // Close profile dropdown when clicking outside
   useEffect(() => {
@@ -644,7 +674,6 @@ function Dashboard() {
   // --- Components ---
   const MediaCard = ({ item }) => (
     <motion.div
-      layout
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.9 }}
@@ -655,7 +684,7 @@ function Dashboard() {
         className="relative aspect-[2/3] rounded-[24px] overflow-hidden glass-card transition-all duration-700 group-hover:-translate-y-3 group-hover:shadow-[0_40px_80px_-20px_rgba(99,102,241,0.5)] cursor-pointer"
       >
         {item.poster ? (
-          <img src={item.poster} alt={item.title} className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
+          <img src={item.poster} alt={item.title} loading="lazy" className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-slate-800 bg-slate-900 border border-white/5"><Film size={40} /></div>
         )}
@@ -678,7 +707,7 @@ function Dashboard() {
               {item.status !== 'Completed' && (
                 <button
                   onClick={() => updateItem(item.id, { status: 'Completed' })}
-                  className="flex-1 bg-white/10 backdrop-blur-xl text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-emerald-500 transition-all active:scale-95"
+                  className="flex-1 bg-white/10 backdrop-blur-md text-white py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider hover:bg-emerald-500 transition-all active:scale-95"
                 >
                   Finish
                 </button>
@@ -704,7 +733,7 @@ function Dashboard() {
         {/* Floating Tags */}
         <div className="absolute top-2 left-2 md:top-4 md:left-4">
           <div className={cn(
-            "px-2 py-1 md:px-3 md:py-1.5 rounded-lg md:rounded-xl backdrop-blur-2xl border border-white/10 flex items-center gap-1.5 md:gap-2 shadow-2xl transition-colors",
+            "px-2 py-1 md:px-3 md:py-1.5 rounded-lg md:rounded-xl backdrop-blur-md md:backdrop-blur-2xl border border-white/10 flex items-center gap-1.5 md:gap-2 shadow-2xl transition-colors",
             item.status === 'Watching' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
               item.status === 'Completed' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
                 'bg-brand-500/20 text-brand-400 border-brand-500/30'
@@ -717,7 +746,7 @@ function Dashboard() {
           </div>
         </div>
 
-        <div className="absolute top-2 right-2 md:top-4 md:right-4 px-1.5 py-1 md:px-2.5 md:py-1.5 rounded-lg md:rounded-xl bg-black/40 backdrop-blur-2xl border border-white/10 flex items-center gap-1 md:gap-1.5 shadow-2xl">
+        <div className="absolute top-2 right-2 md:top-4 md:right-4 px-1.5 py-1 md:px-2.5 md:py-1.5 rounded-lg md:rounded-xl bg-black/40 backdrop-blur-md md:backdrop-blur-2xl border border-white/10 flex items-center gap-1 md:gap-1.5 shadow-2xl">
           <Star className="text-amber-500 w-2.5 h-2.5 md:w-3 md:h-3" fill="#f59e0b" />
           <span className="text-[9px] md:text-[11px] font-black text-white">{item.rating?.toFixed(1)}</span>
         </div>
@@ -772,6 +801,7 @@ function Dashboard() {
           <img
             src={`${IMG_PATH}${item.poster_path}`}
             alt={item.title || item.name}
+            loading="lazy"
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
           />
         ) : (
@@ -809,10 +839,10 @@ function Dashboard() {
 
       {/* Background Decorations */}
       <div className="fixed top-0 left-0 w-full h-[500px] bg-gradient-to-b from-brand-900/10 to-transparent pointer-events-none" />
-      <div className="fixed -top-20 -right-20 w-[500px] h-[500px] bg-brand-600/5 rounded-full blur-[120px] pointer-events-none" />
+      <div className="fixed -top-20 -right-20 w-[500px] h-[500px] bg-brand-600/5 rounded-full blur-[60px] md:blur-[120px] pointer-events-none hidden md:block" />
 
       {/* Navigation */}
-      <nav className="sticky top-0 z-[150] bg-slate-950/20 backdrop-blur-3xl border-b border-white/5 px-4 md:px-6 lg:px-12 py-4 md:py-8">
+      <nav className="sticky top-0 z-[150] bg-slate-950/40 md:bg-slate-950/20 backdrop-blur-lg md:backdrop-blur-3xl border-b border-white/5 px-4 md:px-6 lg:px-12 py-4 md:py-8">
         <div className="max-w-[1700px] mx-auto flex flex-col md:flex-row justify-between items-center gap-4 md:gap-6">
           <div className="flex flex-col md:flex-row items-center gap-4 md:gap-12 w-full md:w-auto">
             <motion.div
@@ -828,7 +858,7 @@ function Dashboard() {
               </h1>
             </motion.div>
 
-            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4 xl:mx-0 xl:px-0 xl:pb-0 bg-white/5 rounded-2xl p-1 border border-white/5 backdrop-blur-3xl xl:bg-transparent xl:border-none">
+            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar pb-1 -mx-4 px-4 xl:mx-0 xl:px-0 xl:pb-0 bg-white/5 rounded-2xl p-1 border border-white/5 backdrop-blur-md md:backdrop-blur-3xl xl:bg-transparent xl:border-none">
               {['All', 'Plan to Watch', 'Watching', 'Completed'].map(s => (
                 <button
                   key={s}
@@ -846,12 +876,14 @@ function Dashboard() {
 
           <div className="flex items-center gap-2 md:gap-4">
             <button
+              aria-label="Toggle Stats Dialog"
               onClick={() => setIsStatsOpen(!isStatsOpen)}
               className={cn("p-2.5 md:p-3 glass rounded-xl transition-all duration-500 group", isStatsOpen ? "bg-brand-500 text-white" : "text-brand-400 hover:bg-brand-500/20")}
             >
               <BarChart3 size={18} className="group-hover:rotate-12 transition-transform md:size-[20px]" />
             </button>
             <button
+              aria-label="Search and Add Media"
               onClick={() => setIsSearchOpen(true)}
               className="flex items-center gap-2 md:gap-3 bg-white text-black px-3 md:px-6 py-2.5 md:py-3 rounded-xl font-black text-[9px] md:text-[10px] uppercase tracking-wider transition-all hover:shadow-lg hover:-translate-y-0.5 active:scale-95 group font-display"
             >
@@ -864,6 +896,7 @@ function Dashboard() {
             {user ? (
               <div className="relative z-50" ref={profileRef}>
                 <button
+                  aria-label="Toggle User Profile"
                   onClick={() => setIsProfileOpen(!isProfileOpen)}
                   className={cn(
                     "flex items-center gap-2 p-1.5 pr-4 glass rounded-xl border transition-all duration-300 active:scale-95 group",
@@ -993,7 +1026,7 @@ function Dashboard() {
                 className="absolute inset-0"
               >
                 {heroItem.backdrop ? (
-                  <img src={heroItem.backdrop} className="absolute inset-0 w-full h-full object-cover transition-transform duration-[8s] scale-110 group-hover:scale-105" alt="" />
+                  <img src={heroItem.backdrop} className="absolute inset-0 w-full h-full object-cover transition-transform duration-[8s] scale-110 group-hover:scale-105" alt={heroItem.title} />
                 ) : (
                   <div className="absolute inset-0 bg-slate-900" />
                 )}
@@ -1001,11 +1034,11 @@ function Dashboard() {
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent" />
 
                 {/* Cinematic Overlays */}
-                <div className="absolute inset-0 film-grain opacity-[0.03] pointer-events-none" />
+                <div className="absolute inset-0 film-grain opacity-[0.03] pointer-events-none hidden md:block" />
                 <div className="absolute inset-0 vignette opacity-60 pointer-events-none" />
 
                 {/* Dynamic Ambient Glow */}
-                <div className={cn("absolute -top-20 -left-20 w-96 h-96 rounded-full blur-[120px] opacity-20 animate-pulse transition-colors duration-1000", getGenreColor(heroItem).replace('from-', 'bg-'))} />
+                <div className={cn("absolute -top-20 -left-20 w-96 h-96 rounded-full blur-[60px] md:blur-[120px] opacity-20 animate-pulse transition-colors duration-1000", getGenreColor(heroItem).replace('from-', 'bg-'))} />
 
                 <div className="relative h-full flex flex-col justify-center px-4 md:px-10 lg:px-20 max-w-5xl space-y-4 md:space-y-8">
                   <motion.div
@@ -1098,7 +1131,7 @@ function Dashboard() {
             <p className="text-slate-500 font-medium text-[10px] md:text-xs">Manage and track your media collection.</p>
           </div>
 
-          <div className="flex flex-wrap gap-3 bg-white/5 p-2 rounded-2xl border border-white/5 backdrop-blur-2xl">
+          <div className="flex flex-wrap gap-3 bg-white/5 p-2 rounded-2xl border border-white/5 backdrop-blur-md md:backdrop-blur-2xl">
             <div className="flex flex-col gap-1.5 px-2">
               <span className="text-[8px] font-black uppercase tracking-widest text-slate-500 px-2">Type</span>
               <div className="flex p-1 bg-black/40 rounded-lg border border-white/5">
@@ -1122,6 +1155,7 @@ function Dashboard() {
             <div className="flex flex-col gap-1.5 px-2 min-w-[150px]">
               <span className="text-[8px] font-black uppercase tracking-widest text-slate-500 px-2">Sort By</span>
               <select
+                aria-label="Sort By"
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
                 className="bg-black/40 border border-white/5 text-[8px] font-black uppercase tracking-wider px-4 py-2 rounded-lg outline-none focus:border-brand-500 appearance-none glass cursor-pointer transition-all"
@@ -1276,7 +1310,7 @@ function Dashboard() {
                         <img
                           src={selectedItem.backdrop}
                           className="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-[3000ms]"
-                          alt=""
+                          alt={selectedItem.title}
                         />
                       ) : (
                         <div className="w-full h-full bg-slate-950 flex items-center justify-center opacity-40">
@@ -1291,6 +1325,7 @@ function Dashboard() {
                 {/* Close Button (Hidden when playing) */}
                 {!isPlayingTrailer && (
                   <button
+                    aria-label="Close Details"
                     onClick={() => setSelectedId(null)}
                     className="absolute top-6 right-6 w-12 h-12 glass rounded-2xl flex items-center justify-center text-white/50 hover:text-white transition-all hover:rotate-90 z-20"
                   >
@@ -1365,6 +1400,7 @@ function Dashboard() {
                         {/* Overlay Player Controls */}
                         <div className="absolute top-4 left-4 flex gap-4 opacity-0 group-hover/player:opacity-100 transition-opacity">
                           <button
+                            aria-label="Close Trailer Player"
                             onClick={(e) => {
                               e.stopPropagation();
                               setIsPlayingTrailer(false);
@@ -1429,7 +1465,7 @@ function Dashboard() {
                         <div key={person.id} className="flex-shrink-0 w-24 text-center group">
                           <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-transparent group-hover:border-brand-500/50 transition-all mb-3 bg-slate-800">
                             {person.profile_path ? (
-                              <img src={`${IMG_PATH}${person.profile_path}`} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt="" />
+                              <img src={`${IMG_PATH}${person.profile_path}`} loading="lazy" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={person.name} />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center"><User size={24} className="text-slate-700" /></div>
                             )}
@@ -1509,7 +1545,7 @@ function Dashboard() {
               animate={{ y: 0, scale: 1, opacity: 1 }}
               exit={{ y: -50, scale: 0.95, opacity: 0 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="w-full max-w-3xl bg-slate-950/98 backdrop-blur-2xl border border-white/10 shadow-[0_30px_100px_-20px_rgba(0,0,0,1)] rounded-3xl overflow-hidden relative z-10"
+              className="w-full max-w-3xl bg-slate-950/98 backdrop-blur-md md:backdrop-blur-2xl border border-white/10 shadow-[0_30px_100px_-20px_rgba(0,0,0,1)] rounded-3xl overflow-hidden relative z-10"
             >
               {/* Omnibar Input Header */}
               <div className="flex items-center gap-4 p-4 md:p-6 border-b border-white/10">
@@ -1554,7 +1590,7 @@ function Dashboard() {
                       >
                         <div className="w-12 h-16 rounded overflow-hidden bg-slate-800 flex-shrink-0">
                           {res.poster_path ? (
-                            <img src={`${IMG_PATH}${res.poster_path}`} alt="" className="w-full h-full object-cover" />
+                            <img src={`${IMG_PATH}${res.poster_path}`} loading="lazy" alt="" className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-slate-700"><Film size={16} /></div>
                           )}
@@ -1595,7 +1631,7 @@ function Dashboard() {
                       >
                         <div className="w-12 h-16 rounded overflow-hidden bg-slate-800 flex-shrink-0">
                           {res.poster_path ? (
-                            <img src={`${IMG_PATH}${res.poster_path}`} alt="" className="w-full h-full object-cover" />
+                            <img src={`${IMG_PATH}${res.poster_path}`} loading="lazy" alt="" className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-slate-700"><Film size={16} /></div>
                           )}

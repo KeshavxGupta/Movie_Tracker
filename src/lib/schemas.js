@@ -15,7 +15,8 @@ export const MediaItemSchema = z.object({
     totalSeasons: z.number().int().min(0).default(0),
     addedAt: z.number().int().positive(),
     overview: z.string().max(2000).optional(),
-    notes: z.string().max(10000).optional().default('')
+    notes: z.string().max(10000).optional().default(''),
+    genres: z.array(z.any()).optional()
 }).strict();
 
 export const UpdateMediaItemSchema = MediaItemSchema.partial().omit({ id: true, tmdbId: true });

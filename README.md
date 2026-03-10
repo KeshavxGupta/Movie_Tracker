@@ -2,7 +2,7 @@
 
 StreamBase is a premium, high-performance media tracking application built for cinephiles. It features a cinematic user experience, real-time cloud synchronization, and a robust security architecture.
 
-![StreamBase Dashboard Mockup]()
+![StreamBase Dashboard Mockup](public/Screenshot%202026-03-07%20200854.png)
 
 ## ✨ Core Features
 
